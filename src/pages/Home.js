@@ -8,12 +8,15 @@ import HomeSkeleton from "../components/skeletons/CarouselSkeleton";
 import useWindowDimensions from "../hooks/useWindowDimensions";
 import WatchingEpisodes from "../components/Home/WatchingEpisodes";
 
-function Home() {
+function Home({changeMetaArr}) {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [change, setChange] = useState(false);
-  const { height, width } = useWindowDimensions();
-
+  const [confirmRemove, setConfirmRemove] = useState([]);
+  const { width } = useWindowDimensions();
+  React.useEffect(()=>{
+    changeMetaArr("title", "Sakamoto - Watch Popular Anime Online")
+    // console.log("Hlo")
+  })
   useEffect(() => {
     getImages();
   }, []);
@@ -50,7 +53,7 @@ function Home() {
                 <span>Continue</span> Watching
               </Heading>
             </HeadingWrapper>
-            <WatchingEpisodes change={change} setChange={setChange} />
+            <WatchingEpisodes confirmRemove={confirmRemove} setConfirmRemove={setConfirmRemove} />
           </div>
         )}
         <div>

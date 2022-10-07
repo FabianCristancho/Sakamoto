@@ -5,52 +5,93 @@ import styled from "styled-components";
 import { BiArrowToBottom, BiFullscreen } from "react-icons/bi";
 import { HiArrowSmLeft, HiArrowSmRight } from "react-icons/hi";
 import { HiOutlineSwitchHorizontal } from "react-icons/hi";
-import { BsSkipEnd } from "react-icons/bs";
 import { IconContext } from "react-icons";
 import WatchAnimeSkeleton from "../components/skeletons/WatchAnimeSkeleton";
 import useWindowDimensions from "../hooks/useWindowDimensions";
 import VideoPlayer from "../components/VideoPlayer/VideoPlayer";
 import ServersList from "../components/WatchAnime/ServersList";
 import PlayerContainer from "../components/Wrappers/PlayerContainer";
+import EpisodeLinksList from "../components/EpisodeLinks/EpisodeLinksList";
 
-function WatchAnime() {
+function WatchAnime({changeMetaArr}) {
   let episodeSlug = useParams().episode;
 
   const [episodeLinks, setEpisodeLinks] = useState([]);
   const [currentServer, setCurrentServer] = useState("");
   const [loading, setLoading] = useState(true);
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const [fullScreen, setFullScreen] = useState(false);
   const [internalPlayer, setInternalPlayer] = useState(true);
   const [localStorageDetails, setLocalStorageDetails] = useState(0);
 
   useEffect(() => {
+    function updateLocalStorage(episode, episodeLinks) {
+      let episodeNum = episode.replace(/.*?(\d+)[^\d]*$/, "$1");
+      let animeName = episodeLinks[0].titleName.substring(
+        0,
+        episodeLinks[0].titleName.indexOf("Episode")
+      );
+      animeName = animeName.substring(0, animeName.length - 1);
+      if (localStorage.getItem("Animes")) {
+        let lsData = localStorage.getItem("Animes");
+        lsData = JSON.parse(lsData);
+
+        let index = lsData.Names.findIndex((i) => i.name === animeName);
+        if (index !== -1) {
+          lsData.Names.splice(index, 1);
+          lsData.Names.unshift({
+            name: animeName,
+            currentEpisode: episodeNum,
+            episodeLink: episodeSlug,
+          });
+        } else {
+          lsData.Names.unshift({
+            name: animeName,
+            currentEpisode: episodeNum,
+            episodeLink: episodeSlug,
+          });
+        }
+        lsData = JSON.stringify(lsData);
+        localStorage.setItem("Animes", lsData);
+      } else {
+        let data = {
+          Names: [],
+        };
+        data.Names.push({
+          name: animeName,
+          currentEpisode: episodeNum,
+          episodeLink: episodeSlug,
+        });
+        data = JSON.stringify(data);
+        localStorage.setItem("Animes", data);
+      }
+    }
+
+    async function getEpisodeLinks() {
+      setLoading(true);
+      window.scrollTo(0, 0);
+      let res = await axios.get(
+        `${process.env.REACT_APP_BACKEND_URL}api/getlinks?link=/${episodeSlug}`
+      );
+      setLoading(false);
+      setEpisodeLinks(res.data);
+      setCurrentServer(res.data[0].vidstreaming);
+      if (
+        res.data[0].sources.sources !== null ||
+        res.data[0].sources.sources !== undefined
+      ) {
+        setInternalPlayer(true);
+      }
+      updateLocalStorage(episodeSlug, res.data);
+      getLocalStorage(
+        res.data[0].titleName.substring(
+          0,
+          res.data[0].titleName.indexOf("Episode")
+        )
+      );
+    }
     getEpisodeLinks();
   }, [episodeSlug]);
-
-  async function getEpisodeLinks() {
-    setLoading(true);
-    window.scrollTo(0, 0);
-    let res = await axios.get(
-      `${process.env.REACT_APP_BACKEND_URL}api/getlinks?link=/${episodeSlug}`
-    );
-    setLoading(false);
-    setEpisodeLinks(res.data);
-    setCurrentServer(res.data[0].vidstreaming);
-    if (
-      res.data[0].sources.sources !== null ||
-      res.data[0].sources.sources !== undefined
-    ) {
-      setInternalPlayer(true);
-    }
-    updateLocalStorage(episodeSlug, res.data);
-    getLocalStorage(
-      res.data[0].titleName.substring(
-        0,
-        res.data[0].titleName.indexOf("Episode")
-      )
-    );
-  }
 
   function getLocalStorage(animeDetails) {
     animeDetails = animeDetails.substring(0, animeDetails.length - 1);
@@ -79,47 +120,18 @@ function WatchAnime() {
     }
   }
 
-  function updateLocalStorage(episode, episodeLinks) {
-    let episodeNum = episode.replace(/.*?(\d+)[^\d]*$/, "$1");
-    let animeName = episodeLinks[0].titleName.substring(
-      0,
-      episodeLinks[0].titleName.indexOf("Episode")
-    );
-    animeName = animeName.substring(0, animeName.length - 1);
-    if (localStorage.getItem("Animes")) {
-      let lsData = localStorage.getItem("Animes");
-      lsData = JSON.parse(lsData);
-
-      let index = lsData.Names.findIndex((i) => i.name === animeName);
-      if (index !== -1) {
-        lsData.Names.splice(index, 1);
-        lsData.Names.unshift({
-          name: animeName,
-          currentEpisode: episodeNum,
-          episodeLink: episodeSlug,
-        });
-      } else {
-        lsData.Names.unshift({
-          name: animeName,
-          currentEpisode: episodeNum,
-          episodeLink: episodeSlug,
-        });
-      }
-      lsData = JSON.stringify(lsData);
-      localStorage.setItem("Animes", lsData);
-    } else {
-      let data = {
-        Names: [],
-      };
-      data.Names.push({
-        name: animeName,
-        currentEpisode: episodeNum,
-        episodeLink: episodeSlug,
-      });
-      data = JSON.stringify(data);
-      localStorage.setItem("Animes", data);
+  useEffect(()=>{
+    if(loading===false){
+      changeMetaArr("title", `${episodeLinks[0].titleName.substring(
+        0,
+        episodeLinks[0].titleName.indexOf("Episode")
+      )} - ${" " +
+      episodeLinks[0].titleName.substring(
+        episodeLinks[0].titleName.indexOf("Episode")
+      )}`)
+      console.log("Hello")
     }
-  }
+  }, [loading])
 
   return (
     <div>
@@ -393,48 +405,13 @@ function WatchAnime() {
                     setCurrentServer={setCurrentServer}
                   />
                 )}
-                <EpisodesWrapper>
-                  <p>Episodes</p>
-                  {width <= 600 && (
-                    <Episodes>
-                      {episodeLinks[0].episodes.map((item, i) => (
-                        <EpisodeLink
-                          to={"/watch" + item}
-                          style={
-                            parseInt(
-                              episodeSlug.replace(/.*?(\d+)[^\d]*$/, "$1")
-                            ) ===
-                              i + 1 || i < localStorageDetails
-                              ? { backgroundColor: "#FFFFFF", color:"#23272A" }
-                              : {}
-                          }
-                        >
-                          {i + 1}
-                        </EpisodeLink>
-                      ))}
-                    </Episodes>
-                  )}
-                  {width > 600 && (
-                    <Episodes>
-                      {episodeLinks[0].episodes.map((item, i) => (
-                        <EpisodeLink
-                          to={"/watch" + item}
-                          style={
-                            parseInt(
-                              episodeSlug.replace(/.*?(\d+)[^\d]*$/, "$1")
-                            ) ===
-                              i + 1 || i < localStorageDetails
-                              ? { backgroundColor: "#FFFFFF", color:"#23272A"  }
-                              : {}
-                          }
-                        >
-                          Episode {i + 1}
-                        </EpisodeLink>
-                      ))}
-                    </Episodes>
-                  )}
-                </EpisodesWrapper>
               </div>
+              <EpisodeLinksList
+                episodeArray={episodeLinks[0]?.episodes}
+                episodeNum={parseInt(
+                  localStorageDetails
+                )}
+              />
             </div>
           )}
         </Wrapper>
@@ -473,94 +450,6 @@ const IframeWrapper = styled.div`
   @media screen and (max-width: 600px) {
     padding-bottom: 66.3%;
     background-size: 13rem;
-  }
-`;
-
-const EpisodesWrapper = styled.div`
-  margin-top: 1rem;
-  border: 1px solid #272639;
-  border-radius: 0.4rem;
-  padding: 1rem;
-
-  p {
-    font-size: 1.3rem;
-    text-decoration: underline;
-    color: white;
-    font-family: "Gilroy-Medium", sans-serif;
-    margin-bottom: 1rem;
-  }
-  box-shadow: 0px 4.41109px 20.291px rgba(16, 16, 24, 0.81);
-`;
-
-const Episodes = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  grid-gap: 1rem;
-  grid-row-gap: 1rem;
-  justify-content: space-between;
-
-  @media screen and (max-width: 600px) {
-    grid-template-columns: repeat(auto-fit, minmax(4rem, 1fr));
-  }
-`;
-
-const EpisodeLink = styled(Link)`
-  text-align: center;
-  color: #FFFFFF;
-  text-decoration: none;
-  background-color: #404040;
-  padding: 0.9rem 2rem;
-  font-family: "Gilroy-Medium", sans-serif;
-  border-radius: 0.4rem;
-  border: 1px solid #23272A;
-  transition: 0.2s;
-
-  :hover {
-    background-color: #202020;
-  }
-`;
-
-const ServerWrapper = styled.div`
-  p {
-    color: #FFFFFF;
-    font-size: 1.4rem;
-    font-family: "Gilroy-Medium", sans-serif;
-    text-decoration: underline;
-  }
-
-  .server-wrapper {
-    padding: 1rem;
-    background-color: #1A1927;
-    border: 1px solid #272639;
-    border-radius: 0.4rem;
-    box-shadow: 0px 4.41109px 20.291px rgba(16, 16, 24, 0.81);
-  }
-
-  .serverlinks {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-    grid-gap: 1rem;
-    grid-row-gap: 1rem;
-    justify-content: space-between;
-    margin-top: 1rem;
-  }
-
-  button {
-    cursor: pointer;
-    outline: none;
-    color: #23272A;
-    background-color: #404040;
-    border: 1px solid #808080;
-    padding: 0.7rem 1.5rem;
-    border-radius: 0.4rem;
-    font-family: "Gilroy-Medium", sans-serif;
-    font-size: 0.9rem;
-  }
-
-  @media screen and (max-width: 600px) {
-    p {
-      font-size: 1.2rem;
-    }
   }
 `;
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef} from "react";
 import { HiOutlineSwitchHorizontal } from "react-icons/hi";
 import { BsSkipEnd } from "react-icons/bs";
 import { IconContext } from "react-icons";
@@ -12,14 +12,11 @@ function VideoPlayer({ sources, internalPlayer, setInternalPlayer, title }) {
   if (src.includes("mp4")) {
     src = sources.sources_bk[0].file;
   }
-  const [player, setPlayer] = useState(null);
 
-  function skipIntro() {
-    player.forward(85);
-  }
+  const [player, setPlayer] = useState(null);
+  const videoRef = useRef();
 
   useEffect(() => {
-    const video = document.getElementById("player");
     let flag = true;
 
     const defaultOptions = {
@@ -39,10 +36,99 @@ function VideoPlayer({ sources, internalPlayer, setInternalPlayer, title }) {
       ],
     };
 
+    function updateQuality(newQuality) {
+      if (newQuality === 0) {
+        window.hls.currentLevel = -1;
+        console.log("Auto quality selection");
+      } else {
+        window.hls.levels.forEach((level, levelIndex) => {
+          if (level.height === newQuality) {
+            console.log("Found quality match with " + newQuality);
+            window.hls.currentLevel = levelIndex;
+          }
+        });
+      }
+    }
+
+    function createPlayer() {
+      const newPlayer = new plyr(videoRef?.current, defaultOptions);
+
+      setPlayer(new plyr(videoRef?.current, defaultOptions));
+
+      if (newPlayer) {
+
+        const skipButton = document.createElement("button");
+        skipButton.classList.add("skip-button");
+        skipButton.innerHTML = "Skip Intro";
+        skipButton.addEventListener("click", function () {
+          newPlayer.forward(85);
+          skipButton.hidden = true; //hides the skip button even if the anime is still loading after skipping the intro
+        });
+
+        let controls;
+        newPlayer.on("ready", () => {
+          controls = document.querySelector(".plyr__controls");
+        });
+
+        newPlayer.on("enterfullscreen", (event) => {
+          if (controls) {
+            controls.appendChild(skipButton);
+          }
+          window.screen.orientation.lock("landscape");
+        });
+
+        newPlayer.on("exitfullscreen", (event) => {
+          if (document.querySelector(".skip-button")) {
+            document.querySelector(".skip-button").remove();
+          }
+          window.screen.orientation.lock("portrait");
+        });
+
+        newPlayer.on("timeupdate", function (e) {
+          const time = newPlayer.currentTime,
+            lastTime = localStorage.getItem(title);
+
+            // hides skip button if the intro was already passed
+          if(time >= 85) {
+            if(document.querySelector(".skip-button")) return document.querySelector(".skip-button").hidden = true;
+            if(document.getElementById("skipbtn")) return document.getElementById("skipbtn").style.display = "none";
+          }
+
+           // re-adds skip button  
+          if(time < 85) {
+            if(document.querySelector(".skip-button")) return document.querySelector(".skip-button").hidden = false;
+            if(document.getElementById("skipbtn")) return document.getElementById("skipbtn").style.display = "inline";
+          }
+
+          if (time > lastTime) {
+            localStorage.setItem(title, Math.round(newPlayer.currentTime));
+          }
+          if (newPlayer.ended) {
+            localStorage.removeItem(title);
+          }
+        });
+
+        newPlayer.on("play", function(e) {
+          if (flag) {
+            const lastTime = localStorage.getItem(title);
+            if (lastTime !== null && lastTime > newPlayer.currentTime) {
+              newPlayer.forward(parseInt(lastTime));
+            }
+            flag = false;
+          }
+        });
+
+        newPlayer.on("seeking", (event) => {
+          localStorage.setItem(title, Math.round(newPlayer.currentTime));
+        });
+      }
+    }
+
+    let hls;
     if (Hls.isSupported()) {
-      const hls = new Hls();
+      hls = new Hls();
       hls.loadSource(src);
-      hls.attachMedia(video);
+      hls.attachMedia(videoRef?.current);
 
       hls.on(Hls.Events.MANIFEST_PARSED, function (event, data) {
         const availableQualities = hls.levels.map((l) => l.height);
@@ -53,148 +139,27 @@ function VideoPlayer({ sources, internalPlayer, setInternalPlayer, title }) {
           forced: true,
           onChange: (e) => updateQuality(e),
         };
+
         hls.on(Hls.Events.LEVEL_SWITCHED, function (event, data) {
-          var span = document.querySelector(
-            ".plyr__menu__container [data-plyr='quality'][value='0'] span"
-          );
-          if (hls.autoLevelEnabled) {
-            span.innerHTML = `Auto (${hls.levels[data.level].height}p)`;
-          } else {
-            span.innerHTML = `Auto`;
-          }
-        });
-        let player = new plyr(video, defaultOptions);
-        setPlayer(new plyr(video, defaultOptions));
-        let plyer;
-        var button = document.createElement("button");
-        button.classList.add("skip-button");
-        button.innerHTML = "Skip Intro";
-        button.addEventListener("click", function () {
-          player.forward(85);
-        });
-        player.on("ready", () => {
-          plyer = document.querySelector(".plyr__controls");
-        });
-
-        player.on("enterfullscreen", (event) => {
-          plyer.appendChild(button);
-          window.screen.orientation.lock("landscape");
-        });
-
-        player.on("exitfullscreen", (event) => {
-          document.querySelector(".skip-button").remove();
-          window.screen.orientation.lock("portrait");
-        });
-
-        player.on("timeupdate", function (e) {
-          var time = player.currentTime,
-            lastTime = localStorage.getItem(title);
-          if (time > lastTime) {
-            localStorage.setItem(title, Math.round(player.currentTime));
-          }
-          if (player.ended) {
-            localStorage.removeItem(title);
-          }
-        });
-
-        player.on("play", function (e) {
-          if (flag) {
-            var lastTime = localStorage.getItem(title);
-            if (lastTime !== null && lastTime > player.currentTime) {
-              player.forward(parseInt(lastTime));
-            }
-            flag = false;
-          }
-        });
-
-        player.on("seeking", (event) => {
-          localStorage.setItem(title, Math.round(player.currentTime));
+          const span = document.querySelector(
+            ".plyr__menu__container [data-plyr='quality'][value='0'] span");
+          span.innerHTML = hls.autoLevelEnabled ? `Auto (${hls.levels[data.level].height}p)` : 'Auto';
         });
       });
-      hls.attachMedia(video);
+
+      if (videoRef.current) {
+        createPlayer();
+      }
       window.hls = hls;
 
-      function updateQuality(newQuality) {
-        if (newQuality === 0) {
-          window.hls.currentLevel = -1;
-          console.log("Auto quality selection");
-        } else {
-          window.hls.levels.forEach((level, levelIndex) => {
-            if (level.height === newQuality) {
-              console.log("Found quality match with " + newQuality);
-              window.hls.currentLevel = levelIndex;
-            }
-          });
-        }
-      }
-    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = src;
-      const defaultOptions = {
-        captions: { active: true, update: true, language: "en" },
-        controls: [
-          "play-large",
-          "rewind",
-          "play",
-          "fast-forward",
-          "progress",
-          "current-time",
-          "duration",
-          "mute",
-          "volume",
-          "settings",
-          "fullscreen",
-        ],
-      };
-      let player = new plyr(video, defaultOptions);
-      setPlayer(new plyr(video, defaultOptions));
-      let plyer;
-      var button = document.createElement("button");
-      button.classList.add("skip-button");
-      button.innerHTML = "Skip Intro";
-      button.addEventListener("click", function () {
-        player.forward(85);
-      });
-      player.on("ready", () => {
-        plyer = document.querySelector(".plyr__controls");
-      });
+    } else if (videoRef.current.canPlayType("application/vnd.apple.mpegurl")) {
 
-      player.on("enterfullscreen", (event) => {
-        plyer.appendChild(button);
-        window.screen.orientation.lock("landscape");
-      });
-
-      player.on("exitfullscreen", (event) => {
-        document.querySelector(".skip-button").remove();
-        window.screen.orientation.lock("portrait");
-      });
-
-      player.on("timeupdate", function (e) {
-        var time = player.currentTime,
-          lastTime = localStorage.getItem(title);
-        if (time > lastTime) {
-          localStorage.setItem(title, Math.round(player.currentTime));
-        }
-        if (player.ended) {
-          localStorage.removeItem(title);
-        }
-      });
-
-      player.on("play", function (e) {
-        if (flag) {
-          var lastTime = localStorage.getItem(title);
-          if (lastTime !== null && lastTime > player.currentTime) {
-            player.forward(parseInt(lastTime));
-          }
-          flag = false;
-        }
-      });
-
-      player.on("seeking", (event) => {
-        localStorage.setItem(title, Math.round(player.currentTime));
-      });
+      videoRef.current.src = src;
+      createPlayer();
     } else {
-      const player = new plyr(src, defaultOptions);
-      player.source = {
+
+      const newPlayer = new plyr(src, defaultOptions);
+      newPlayer.source = {
         type: "video",
         title: "Example title",
         sources: [
@@ -204,8 +169,19 @@ function VideoPlayer({ sources, internalPlayer, setInternalPlayer, title }) {
           },
         ],
       };
+      setPlayer(newPlayer);
     }
-  }, []);
+
+    return () => {
+      hls.stopLoad();
+      hls.destroy();
+    };
+  }, [src, title]);
+
+  // hides the skip button even if the anime is still loading after skipping the intro
+  function hidebtn(e) {
+    document.getElementById(e).style.display = "none";
+  }
 
   return (
     <div
@@ -233,8 +209,8 @@ function VideoPlayer({ sources, internalPlayer, setInternalPlayer, title }) {
               </button>
               <span className="tooltiptext">Change Server</span>
             </div>
-            <div className="tooltip">
-              <button onClick={() => skipIntro()}>
+            <div id="skipbtn" className="tooltip">
+              <button onClick={() => player.forward(85) & hidebtn("skipbtn")}>
                 <BsSkipEnd />
               </button>
               <span className="tooltiptext">Skip Intro</span>
@@ -242,10 +218,9 @@ function VideoPlayer({ sources, internalPlayer, setInternalPlayer, title }) {
           </div>
         </IconContext.Provider>
       </PlayerContainer>
-      <video id="player" playsInline crossorigin="anonymous"></video>
+      <video id="player" ref={videoRef} playsInline crossOrigin="anonymous"></video>
     </div>
   );
 }
-
 
 export default VideoPlayer;

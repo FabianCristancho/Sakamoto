@@ -4,7 +4,7 @@ import Skeleton from "react-loading-skeleton";
 import useWindowDimensions from "../../hooks/useWindowDimensions";
 
 function SearchResultsSkeleton({ name }) {
-  const { height, width } = useWindowDimensions();
+  const { width } = useWindowDimensions();
 
   return (
     <Parent>
@@ -13,7 +13,7 @@ function SearchResultsSkeleton({ name }) {
       </Heading>
       <CardWrapper>
         {[...Array(40)].map((x, i) => (
-          <div>
+          <div key={i}>
             <Skeleton
               width={width <= 600 ? "110px" : "160px"}
               height={width <= 600 ? "170px" : "235px"}

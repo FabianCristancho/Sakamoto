@@ -13,7 +13,11 @@ const GlobalStyle = createGlobalStyle`
 			-webkit-user-select: none; /* Safari 3.1+ */
 			-moz-user-select: none; /* Firefox 2+ */
 			-ms-user-select: none; /* IE 10+ */
-		  }
+	}
+	body > #root {
+		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
 	}
 
 	::placeholder {
@@ -24,7 +28,7 @@ const GlobalStyle = createGlobalStyle`
 	/* Firefox */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #4f4f4f #141414;
+    scrollbar-color: #4F4F4F #141414;
   }
 
   /* Chrome, Edge, and Safari */
@@ -37,9 +41,9 @@ const GlobalStyle = createGlobalStyle`
   }
 
   *::-webkit-scrollbar-thumb {
-    background-color: #4f4f4f;
+    background-color: #4F4F4F;
     border-radius: 10px;
-    border: 0px none #ffffff;
+    border: 0px none #FFFFFF;
   }
 
 	.swiper-pagination-bullet-active {

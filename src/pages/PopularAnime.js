@@ -1,16 +1,19 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import styled from "styled-components";
+import AnimeGrid from "../components/AnimeGrid/AnimeGrid";
 import SearchResultsSkeleton from "../components/skeletons/SearchResultsSkeleton";
 
-function PopularAnime() {
+function PopularAnime({changeMetaArr}) {
   const [animeDetails, setAnimeDetails] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getAnime();
   }, []);
+
+  React.useEffect(()=>{
+    changeMetaArr("title", "Popular Anime")
+  })
 
   async function getAnime() {
     window.scrollTo(0, 0);
@@ -24,30 +27,7 @@ function PopularAnime() {
     <div>
       {loading && <SearchResultsSkeleton name="Popular Anime" />}
       {!loading && (
-        <Parent>
-          <Heading>
-            <span>Popular Anime</span> Results
-          </Heading>
-          <CardWrapper>
-            {animeDetails.map((item, i) => (
-              <Links
-                to={
-                  "/search/" +
-                  (item.title.userPreferred !== null
-                    ? item.title.userPreferred
-                    : item.title.english)
-                }
-              >
-                <img src={item.coverImage.large} alt="" />
-                <p>
-                  {item.title.english !== null
-                    ? item.title.english
-                    : item.title.userPreferred}
-                </p>
-              </Links>
-            ))}
-          </CardWrapper>
-        </Parent>
+        <AnimeGrid animeDetails={animeDetails} title="Popular Anime" />
       )}
     </div>
   );
@@ -150,3 +130,4 @@ const Heading = styled.p`
 `;
 
 export default PopularAnime;
+
