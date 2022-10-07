@@ -93,6 +93,7 @@ const Links = styled(Link)`
     height: 235px;
     border-radius: 0.5rem;
     object-fit: cover;
+    transition: transform .3s;
     @media screen and (max-width: 600px) {
       width: 120px;
       height: 180px;
@@ -114,10 +115,22 @@ const Links = styled(Link)`
     font-family: "Gilroy-Medium", sans-serif;
     text-decoration: none;
     max-width: 160px;
+    transition: transform .3s ease-out;
     @media screen and (max-width: 380px) {
       width: 100px;
       font-size: 0.9rem;
     }
+  }
+
+  img:hover {
+    transform: scale(1.2);
+  }
+
+  img:hover + p {
+    transform: translate(0, 1.2rem);
+    font-size: 1.1rem;
+    text-align: center;
+    font-weight: 600;
   }
 `;
 

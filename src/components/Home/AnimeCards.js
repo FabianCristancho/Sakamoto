@@ -62,6 +62,7 @@ function AnimeCards(props) {
             <SwiperSlide>
               <Wrapper>
                 <Link
+                  className="img_card"
                   to={
                     "search/" +
                     (item.title.userPreferred !== null
@@ -92,6 +93,7 @@ const Wrapper = styled.div`
     border-radius: 0.5rem;
     margin-bottom: 0.3rem;
     object-fit: cover;
+    transition: transform .3s;
     @media screen and (max-width: 600px) {
       width: 120px;
       height: 180px;
@@ -102,11 +104,25 @@ const Wrapper = styled.div`
     }
   }
 
+  img: hover {
+    transform: scale(1.2);
+  }
+
   p {
     color: #FFFFFF;
     font-size: 1rem;
     font-family: "Gilroy-Medium", sans-serif;
+    transition: transform .3s ease-out
   }
+
+  .img_card:hover + p {
+    transform: translate(0, 1.1rem);
+    font-size: 1.1rem;
+    text-align: center;
+    font-weight: 600;
+  }
+
+
 `;
 
 export default AnimeCards;
